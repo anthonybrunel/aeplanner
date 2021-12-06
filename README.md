@@ -1,11 +1,10 @@
-# Autonomous Exploration Planner - aeplanner
+# FLYBO Fork of AEP: Autonomous Exploration Planner
 
-aeplanner is an exploration planning package for 3d environments. It subscribes to an [OctoMap](https://octomap.github.io/) and will propose waypoints that maximizes the information gain while minimizing the traversed distance. For a more detailed description see our paper.
+This is a fork of the public AEP package that we refactor in order to fit within the FLYBO system.
+This is in particular in order to factorize the common routines shared by autonomous exploration planners to allow for fair, accurate comparative evaluation of planning systems. More info on the project's website www.flybo.org.
 
-Use aeplanner?
-If you are using aeplanner, please cite our paper **Efficient Autonomous Exploration Planning of Large-Scale 3-D Environments** in IEEE Robotics and Automation Letters, vol. 4, no. 2, pp. 1699-1706, April 2019.
+## Citation
 
-BibTeX:
 ```
 @ARTICLE{8633925,
     author={M. {Selin} and M. {Tiger} and D. {Duberg} and F. {Heintz} and P. {Jensfelt}},
@@ -20,6 +19,25 @@ BibTeX:
     ISSN={2377-3766},
     month={April},}
 ```
+
+```
+@inproceedings{Brunel3DV2021,
+  TITLE = {FLYBO: A Unified Benchmark Environment for Autonomous Flying Robots},
+  AUTHOR = {Brunel, Anthony and Bourki, Amine and Strauss, Olivier and Demonceaux, C{\'e}dric},
+  BOOKTITLE = {9th International Conference on 3D Vision},
+  ADDRESS = {Online, United Kingdom},
+  YEAR = {2021}
+}
+```
+
+## Original ReadMe
+
+If you use any of this forked version, please consider citing the following works:
+
+aeplanner is an exploration planning package for 3d environments. It subscribes to an [OctoMap](https://octomap.github.io/) and will propose waypoints that maximizes the information gain while minimizing the traversed distance. For a more detailed description see our paper.
+
+Use aeplanner?
+If you are using aeplanner, please cite our paper **Efficient Autonomous Exploration Planning of Large-Scale 3-D Environments** in IEEE Robotics and Automation Letters, vol. 4, no. 2, pp. 1699-1706, April 2019.
 
 
 ## System Requirements
