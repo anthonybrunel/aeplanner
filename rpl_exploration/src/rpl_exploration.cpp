@@ -128,9 +128,7 @@ int main(int argc, char** argv)
       rpl_exploration::FlyToGoal goal;
       goal.pose = goal_pose;
       ac.sendGoal(goal);
-
       ac.waitForResult(ros::Duration(0));
-
       fly_time = ros::Time::now() - s;
     }
     else

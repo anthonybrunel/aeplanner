@@ -3,14 +3,14 @@
 
 #include <ros/ros.h>
 
-#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/PoseArray.h>
 
 #include <tf/transform_listener.h>
 
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
-
+#include <chrono>
 #include <eigen3/Eigen/Dense>
 
 #include <kdtree/kdtree.h>
@@ -31,6 +31,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <nav_msgs/Path.h>
+#include <ctime>
 
 namespace aeplanner
 {
@@ -58,6 +59,12 @@ private:
   // Subscribers
   ros::Subscriber octomap_sub_;
   ros::Subscriber agent_pose_sub_;
+  std::clock_t timer_;
+  double collision_time_ = 0;
+  double collision_check_count_ = 0;
+
+  std::vector<double> times;
+  double std_times = 0;
 
   // Publishers
   ros::Publisher rrt_marker_pub_;
@@ -108,7 +115,7 @@ public:
   void execute(const aeplanner::aeplannerGoalConstPtr& goal);
 
   void octomapCallback(const octomap_msgs::Octomap& msg);
-  void agentPoseCallback(const geometry_msgs::PoseStamped& msg);
+  void agentPoseCallback(const geometry_msgs::TransformStamped& msg);
 };
 
 }  // namespace aeplanner

@@ -40,6 +40,8 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+    <buildtool_depend>catkin_simple</buildtool_depend>
+
   <build_depend>octomap</build_depend>
   <build_depend>octomap_msgs</build_depend>
   <build_depend>roscpp</build_depend>
@@ -53,6 +55,8 @@
   <build_depend>rrtplanner</build_depend>
   <build_depend>nav_msgs</build_depend>
 
+  <build_depend>mav_trajectory_generation</build_depend>
+  <build_depend>mav_trajectory_generation_ros</build_depend>
   <run_depend>octomap</run_depend>
   <run_depend>octomap_msgs</run_depend>
   <run_depend>roscpp</run_depend>
@@ -66,13 +70,14 @@
   <run_depend>rrtplanner</run_depend>
   <run_depend>nav_msgs</run_depend>
 
-
   <build_depend>rospy</build_depend>
   <build_depend>opencv2</build_depend>
   <build_depend>cv_bridge</build_depend>
   <run_depend>rospy</run_depend>
   <run_depend>opencv2</run_depend>
   <run_depend>cv_bridge</run_depend>
+  <run_depend>mav_trajectory_generation</run_depend>
+  <run_depend>mav_trajectory_generation_ros</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

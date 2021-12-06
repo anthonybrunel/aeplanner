@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="scene" value="avm_facility1"/>
+
+  <!-- Bench params -->
+  <arg name="quad_name" value="hummingbird"/>
+  <arg name="mav_name" value="$(arg quad_name)"/>
+  <arg name="uav_gt_odom_topic" value="$(arg mav_name)/ground_truth/odometry"/>
+  <arg name="max_range" default="5."/>
+  <arg name="voxel_size" default="0.1"/>
+  <arg name="traj_topic" value="$(arg mav_name)/autopilot/reference_state" />
+  <arg name="cloud_topic" value="/camera/cloud"/>
+  <arg name="save_mesh_folder" value="/home/anthony/oscar/motion_planning/src/oscar/data/aep/$(arg scene)/mesh" />
+  <arg name="save_vol_folder" value="/home/anthony/oscar/motion_planning/src/oscar/data/aep/$(arg scene)/vol" />
+
+  <include file="$(find uav_mapper)/launch/utils_launch/$(arg scene)_launch_soa.launch">
+    <arg name="max_range" value="$(arg max_range)" />
+    <arg name="voxel_size" value="$(arg voxel_size)" />
+    <arg name="save_mesh_folder" value="$(arg save_mesh_folder)" />
+    <arg name="save_vol_folder" value="$(arg save_vol_folder)" />
+  </include>
+
+
+  <arg name="save_log_folder" value="/home/anthony/oscar/motion_planning/src/oscar/data/aep/$(arg scene)/log" />
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_world" args="0.00 0 0.0 0 0 0 world map" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_base_to_cam" args="0 0 0.0 0 0 0 world tf_wc"/>
+  <arg name="param_file" default="$(find rpl_exploration)/config/$(arg scene).yaml" />
+  <rosparam command="load" file="$(arg param_file)" />
+  	<!--<include file="$(find aeplanner_evaluation)/launch/coverage_evaluation.launch"/>-->
+  <include file="$(find aeplanner)/launch/aeplanner_nodelet.launch"/>
+  <include file="$(find pigain)/launch/pig.launch"/>
+
+  <include file="$(find rpl_exploration)/launch/octomap_launch/octomap_server.launch">
+    <arg name="cloud_topic" value="$(arg cloud_topic)" />
+    <arg name="max_range" value="$(arg max_range)" />
+    <arg name="voxel_size" value="$(arg voxel_size)" />
+  </include>
+
+  <include file="$(find rrtplanner)/launch/rrtplanner.launch"/>
+
+  <node name="rpl_exploration_rotors" pkg="rpl_exploration" type="rpl_exploration_rotors" output="screen">
+    <param name="max_vel" value="1.5" />
+    <param name="max_acc" value="2.5" />
+    <param name="planner/save_log_folder" value="$(arg save_log_folder)" />
+    <!-- <param name="max_yaw_rate" value="1.57" />
+    <param name="max_yaw_acc" value="1.57" /> -->
+    <remap from="/rpl_exploration_rotors/uav_odom" to="$(arg uav_gt_odom_topic)" />
+    <remap from="/command/trajectory" to="$(arg traj_topic)" />
+
+
+
+  </node>
+
+</launch>

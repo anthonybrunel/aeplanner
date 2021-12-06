@@ -2,7 +2,7 @@
 import rospy
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TransformStamped
 
 from pigain.msg import Node
 from pigain.srv import Query, QueryResponse
@@ -12,7 +12,7 @@ from aeplanner.srv import Reevaluate
 
 import numpy as np
 from rtree import index
-
+from threading import Thread, Lock
 import gp
 
 class PIGain:
@@ -27,7 +27,7 @@ class PIGain:
         self.resolution      = rospy.get_param('~visualize/resolution',   1)
 
         self.gain_sub = rospy.Subscriber('gain_node', Node, self.gain_callback)
-        self.pose_sub = rospy.Subscriber('pose', PoseStamped, self.pose_callback)
+        self.pose_sub = rospy.Subscriber('pose', TransformStamped, self.pose_callback)
         self.marker_pub = rospy.Publisher('pig_markers', MarkerArray, queue_size=10)
         self.mean_pub = rospy.Publisher('mean_markers', MarkerArray, queue_size=10)
         self.sigma_pub = rospy.Publisher('sigma_markers', MarkerArray, queue_size=10)
@@ -37,7 +37,7 @@ class PIGain:
         if self.visualize_mean or self.visualize_sigma:
             rospy.Timer(rospy.Duration(5), self.evaluate)
 
-        # Get environment boundaries 
+        # Get environment boundaries
         try:
             self.min = rospy.get_param('boundary/min')
             self.max = rospy.get_param('boundary/max')
@@ -68,12 +68,13 @@ class PIGain:
         self.id = 0
 
         rospy.Timer(rospy.Duration(5), self.reevaluate_timer_callback)
+        self.mutex = Lock()
 
     """ Save current pose of agent """
     def pose_callback(self, msg):
-        self.x = msg.pose.position.x
-        self.y = msg.pose.position.y
-        self.z = msg.pose.position.z
+        self.x = msg.transform.translation.x
+        self.y = msg.transform.translation.y
+        self.z = msg.transform.translation.z
 
     """ Reevaluate gain in all cached nodes that are closer to agent than self.range """
     def reevaluate_timer_callback(self, event):
@@ -82,47 +83,51 @@ class PIGain:
             rospy.logwarn("No position received yet...")
             rospy.logwarn("Make sure that 'pose' has been correctly mapped and that it is being published")
             return
-
-        bbx = (self.x-self.range, self.y-self.range, self.z-self.range, 
+        bbx = (self.x-self.range, self.y-self.range, self.z-self.range,
                self.x+self.range, self.y+self.range, self.z+self.range)
 
+        self.mutex.acquire()
         hits = self.idx.intersection(bbx, objects=True)
 
         reevaluate_list = []
         reevaluate_position_list = []
+
         for item in hits:
             if(item.object.gain > 2):
                 reevaluate_position_list.append(item.object.position)
                 reevaluate_list.append(item)
         try:
             res = self.reevaluate_client(reevaluate_position_list)
-        except rospy.ServiceException, e:
+        except rospy.ServiceException as e:
             rospy.logerr("Calling reevaluate service failed")
             return
-
         for i, item in enumerate(reevaluate_list):
             item.object.gain = res.gain[i]
             item.object.yaw = res.yaw[i]
-
             self.idx.delete(item.id, (item.object.position.x, item.object.position.y, item.object.position.z))
             self.idx.insert(item.id, (item.object.position.x, item.object.position.y, item.object.position.z), obj=item.object)
-
+        self.mutex.release()
         rospy.loginfo("reevaluate done")
 
     """ Insert node with estimated gain in rtree """
     def gain_callback(self, msg):
+        self.mutex.acquire()
         self.idx.insert(self.id, (msg.position.x, msg.position.y, msg.position.z), obj=msg)
+        self.mutex.release()
         self.id += 1
 
     """ Handle query to Gaussian Process """
     def query_server(self, req):
-        bbx = (req.point.x-2, req.point.y-2, req.point.z-2, 
+        rospy.loginfo("query_server start")
+        bbx = (req.point.x-2, req.point.y-2, req.point.z-2,
                req.point.x+2, req.point.y+2, req.point.z+2)
         y = np.empty((0))
         x = np.empty((0,3))
+        self.mutex.acquire()
         hits = self.idx.intersection(bbx, objects=True)
         nearest = self.idx.nearest(bbx, 1, objects=True)
 
+        self.mutex.release()
         for item in hits:
             y = np.append(y, [item.object.gain], axis=0)
             x = np.append(x, [[item.object.position.x, item.object.position.y, item.object.position.z]], axis = 0)
@@ -136,7 +141,6 @@ class PIGain:
             response.mu = 0
             response.sigma = 1
             return response
-
         xstar = np.array([[req.point.x, req.point.y, req.point.z]])
 
         mean, sigma = gp.gp(y, x, xstar, self.hyperparam, gp.sqexpkernel)
@@ -145,13 +149,15 @@ class PIGain:
         response.mu = mean
         response.sigma = sigma
         response.yaw = yaw
-
+        rospy.loginfo("query_server done")
         return response
 
     """ Return all nodes with gain higher than req.threshold """
     def best_node_srv_callback(self, req):
+        rospy.loginfo("best_node_srv_callback start")
+        self.mutex.acquire()
         hits = self.idx.intersection(self.bbx, objects=True)
-
+        self.mutex.release()
         best_gain = -1
         best_pose = None
         response = BestNodeResponse()
@@ -162,14 +168,18 @@ class PIGain:
                 best_gain = item.object.gain
 
         response.gain = best_gain
+        rospy.loginfo("best_node_srv_callback done")
         return response
 
     """ Evaluate potential information gain function over grid and publish it in rviz """
     def evaluate(self, event):
+        rospy.loginfo("evaluate start")
         y = np.empty((0))
         x = np.empty((0,3))
         xstar = np.empty((0,3))
+        self.mutex.acquire()
         hits = self.idx.intersection(self.bbx, objects=True)
+        self.mutex.release()
         for item in hits:
             y = np.append(y, [item.object.gain], axis=0)
             x = np.append(x, [[item.object.position.x, item.object.position.y, item.object.position.z]], axis = 0)
@@ -189,17 +199,20 @@ class PIGain:
         for id, pts in enumerate(zip(xstar, mean, sigma)):
             mean_markers.markers.append(self.np_array_to_marker(id, pts[0], pts[1], max(1-pts[2], 0)))
             # sigma_markers.markers.append(self.np_array_to_marker(id, pts[0], pts[2] * 2))
-        
+
         self.mean_pub.publish(mean_markers)
         self.sigma_pub.publish(sigma_markers)
+        rospy.loginfo("evaluate done")
 
     """ Publish all cached nodes in rviz """
     def rviz_callback(self, event):
         markers = MarkerArray()
+        self.mutex.acquire()
         hits = self.idx.intersection(self.bbx, objects=True)
+        self.mutex.release()
         for item in hits:
             markers.markers.append(self.node_to_marker(item.id, item.object))
-        
+
         self.marker_pub.publish(markers)
 
 
@@ -213,7 +226,7 @@ class PIGain:
         marker.scale.y = self.resolution
         marker.scale.z = 0.1
         marker.color.r = v / 72.0
-        marker.color.g = 0 
+        marker.color.g = 0
         marker.color.b = 0.5
         marker.color.a = a
         marker.pose.orientation.w = 1.0
@@ -231,9 +244,9 @@ class PIGain:
         marker.type = marker.SPHERE
         marker.action = marker.ADD
         marker.id = id
-        marker.scale.x = 0.4
-        marker.scale.y = 0.4
-        marker.scale.z = 0.4
+        marker.scale.x = 0.3
+        marker.scale.y = 0.3
+        marker.scale.z = 0.3
         marker.color.r = node.gain / 72.0
         marker.color.g = 0.0
         marker.color.b = 0.5

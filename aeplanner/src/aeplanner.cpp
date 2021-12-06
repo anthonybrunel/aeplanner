@@ -10,9 +10,9 @@ AEPlanner::AEPlanner(const ros::NodeHandle& nh)
   , agent_pose_sub_(nh_.subscribe("agent_pose", 1, &AEPlanner::agentPoseCallback, this))
   , rrt_marker_pub_(nh_.advertise<visualization_msgs::MarkerArray>("rrtree", 1000))
   , gain_pub_(nh_.advertise<pigain::Node>("gain_node", 1000))
-  , gp_query_client_(nh_.serviceClient<pigain::Query>("gp_query_server"))
+  , gp_query_client_(nh_.serviceClient<pigain::Query>("gp_query_server",true))
   , reevaluate_server_(nh_.advertiseService("reevaluate", &AEPlanner::reevaluate, this))
-  , best_node_client_(nh_.serviceClient<pigain::BestNode>("best_node_server"))
+  , best_node_client_(nh_.serviceClient<pigain::BestNode>("best_node_server",true))
   , current_state_initialized_(false)
   , ot_(NULL)
   , best_node_(NULL)
@@ -28,6 +28,9 @@ AEPlanner::AEPlanner(const ros::NodeHandle& nh)
 void AEPlanner::execute(const aeplanner::aeplannerGoalConstPtr& goal)
 {
   aeplanner::aeplannerResult result;
+
+  timer_ = std::clock();
+
 
   // Check if aeplanner has recieved agent's pose yet
   if (!current_state_initialized_)
@@ -64,6 +67,8 @@ void AEPlanner::execute(const aeplanner::aeplannerGoalConstPtr& goal)
   ROS_DEBUG("extractPose");
   result.pose.pose = vecToPose(best_branch_root_->children_[0]->state_);
   ROS_INFO_STREAM("Best node score: " << best_node_->score(params_.lambda));
+
+
   if (best_node_->score(params_.lambda) > params_.zero_gain)
     result.is_clear = true;
   else
@@ -75,10 +80,32 @@ void AEPlanner::execute(const aeplanner::aeplannerGoalConstPtr& goal)
   }
   as_.setSucceeded(result);
 
+
+
   ROS_DEBUG("Deleting/Freeing!");
   delete root;
   kd_free(kd_tree_);
   ROS_DEBUG("Done!");
+  collision_time_ = std::chrono::duration<double>(std::clock() - timer_).count() / 1e6;
+  times.push_back(collision_time_);
+
+  if(times.size()==0)
+      return;
+  std_times = 0;
+  float mean = 0;
+  for(size_t i = 0; i < times.size(); ++i){
+      mean += times[i];
+  }
+  mean /= (double)times.size();
+  for(size_t i = 0; i < times.size(); ++i){
+      std_times += pow(times[i] - mean, 2);
+  }
+  std_times /= (double)times.size();
+  std_times = sqrt(std_times);
+
+
+  std::cout<< "Iteration " << times.size() << " " << " " << mean <<" " << std_times <<std::endl;
+
 }
 
 RRTNode* AEPlanner::initialize()
@@ -186,6 +213,7 @@ void AEPlanner::expandRRT()
     } while (!isInsideBoundaries(new_node->state_) or !ot_result or
              collisionLine(nearest->state_, new_node->state_, params_.bounding_radius));
 
+
     ROS_DEBUG_STREAM("New node (" << new_node->state_[0] << ", " << new_node->state_[1]
                                   << ", " << new_node->state_[2] << ")");
     // new_node is now ready to be added to tree
@@ -204,6 +232,7 @@ void AEPlanner::expandRRT()
     ROS_DEBUG_STREAM("Insert into KDTREE");
     kd_insert3(kd_tree_, new_node->state_[0], new_node->state_[1], new_node->state_[2],
                new_node);
+
 
     // Update best node
 
@@ -333,7 +362,7 @@ std::pair<double, double> AEPlanner::getGain(RRTNode* node)
 
   node->gain_explicitly_calculated_ = true;
   std::pair<double, double> ret = gainCubature(node->state_);
-  ROS_INFO_STREAM("gain expl: " << ret.first);
+  //ROS_INFO_STREAM("gain expl: " << ret.first);
   return ret;
 }
 
@@ -539,12 +568,12 @@ void AEPlanner::publishEvaluatedNodesRecursive(RRTNode* node)
   }
 }
 
-void AEPlanner::agentPoseCallback(const geometry_msgs::PoseStamped& msg)
+void AEPlanner::agentPoseCallback(const geometry_msgs::TransformStamped& msg)
 {
-  current_state_[0] = msg.pose.position.x;
-  current_state_[1] = msg.pose.position.y;
-  current_state_[2] = msg.pose.position.z;
-  current_state_[3] = tf2::getYaw(msg.pose.orientation);
+  current_state_[0] = msg.transform.translation.x;
+  current_state_[1] = msg.transform.translation.y;
+  current_state_[2] = msg.transform.translation.z;
+  current_state_[3] = tf2::getYaw(msg.transform.rotation);
 
   current_state_initialized_ = true;
 }

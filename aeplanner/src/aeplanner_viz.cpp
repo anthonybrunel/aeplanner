@@ -73,8 +73,8 @@ namespace aeplanner {
     marker.pose.orientation.z = q.z();
     marker.pose.orientation.w = q.w();
     marker.scale.x = dir.norm();
-    marker.scale.y = 0.03;
-    marker.scale.z = 0.03;
+    marker.scale.y = 0.2;
+    marker.scale.z = 0.2;
     marker.color.r = node->score(lambda) / 60.0;
     marker.color.g = 0.0;
     marker.color.b = 1.0;

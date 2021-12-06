@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rpl_exploration)
 
-add_definitions(-std=c++11)
+add_definitions(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -22,45 +22,15 @@ find_package(catkin REQUIRED COMPONENTS
   aeplanner
   aeplanner_evaluation
   rrtplanner
+  trajectory_msgs
+  mav_msgs
+  mav_trajectory_generation
+  mav_trajectory_generation_ros
 )
 
 find_package(octomap REQUIRED)
 find_package(PCL REQUIRED)
 
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
-
-
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
-
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## To declare and build messages, services or actions from within this
-## package, follow these steps:
-## * Let MSG_DEP_SET be the set of packages whose message types you use in
-##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
-## * In the file package.xml:
-##   * add a build_depend tag for "message_generation"
-##   * add a build_depend and a run_depend tag for each package in MSG_DEP_SET
-##   * If MSG_DEP_SET isn't empty the following dependency has been pulled in
-##     but can be declared for certainty nonetheless:
-##     * add a run_depend tag for "message_runtime"
-## * In this file (CMakeLists.txt):
-##   * add "message_generation" and every package in MSG_DEP_SET to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * add "message_runtime" and every package in MSG_DEP_SET to
-##     catkin_package(CATKIN_DEPENDS ...)
-##   * uncomment the add_*_files sections below as needed
-##     and list every .msg/.srv/.action file to be processed
-##   * uncomment the generate_messages entry below
-##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
-
-# find_package(catkin REQUIRED genmsg actionlib_msgs actionlib)
 add_action_files(DIRECTORY action FILES FlyTo.action)
 generate_messages(DEPENDENCIES actionlib_msgs geometry_msgs)
 ## Generate messages in the 'msg' folder
@@ -90,6 +60,12 @@ generate_messages(DEPENDENCIES actionlib_msgs geometry_msgs)
 #  sensor_msgs
 #  std_msgs
 #)
+
+catkin_package(
+    INCLUDE_DIRS include
+    LIBRARIES rpl_exploration
+    CATKIN_DEPENDS mav_trajectory_generation mav_trajectory_generation_ros
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -139,37 +115,28 @@ include_directories(${OCTOMAP_INCLUDE_DIRS})
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-## Declare a C++ library
-# add_library(rpl_exploration
-#   src/${PROJECT_NAME}/rpl_exploration.cpp
-# )
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(rpl_exploration ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-## Declare a C++ executable
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# add_dependencies(rpl_exploration_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
 add_library(laserscan_to_pointcloud src/laserscan_to_pointcloud.cpp)
 target_link_libraries(laserscan_to_pointcloud ${catkin_LIBRARIES})
 if(catkin_EXPORTED_LIBRARIES)
   add_dependencies(laserscan_to_pointcloud ${catkin_EXPORTED_LIBRARIES})
 endif()
 
-add_executable(fly_to src/fly_to.cpp)
-target_link_libraries( fly_to ${catkin_LIBRARIES})
-add_dependencies(fly_to rpl_exploration_generate_messages_cpp)
+#add_executable(fly_to src/fly_to.cpp)
+#target_link_libraries( fly_to ${catkin_LIBRARIES})
+#add_dependencies(fly_to rpl_exploration_generate_messages_cpp)
 
-add_executable(rpl_exploration src/rpl_exploration.cpp)
-target_link_libraries(rpl_exploration ${catkin_LIBRARIES})
-add_dependencies(rpl_exploration ${catkin_EXPORTED_TARGETS})
-add_dependencies(rpl_exploration rpl_exploration_generate_messages_cpp)
+#add_executable(rpl_exploration src/rpl_exploration.cpp)
+#target_link_libraries(rpl_exploration ${catkin_LIBRARIES})
+#add_dependencies(rpl_exploration ${catkin_EXPORTED_TARGETS})
+#add_dependencies(rpl_exploration rpl_exploration_generate_messages_cpp)
+
+
+add_executable(rpl_exploration_rotors src/rpl_exploration_rotors.cpp      ../../../oscar/utils_headers/poly_trajectory_rpg.h ../../../oscar/utils_headers/plannerlogging.h ../../../oscar/utils_headers/timer.hpp)
+target_link_libraries(rpl_exploration_rotors ${catkin_LIBRARIES}  ${catkin_LIBRARIES} )
+add_dependencies(rpl_exploration_rotors ${catkin_EXPORTED_TARGETS})
+add_dependencies(rpl_exploration_rotors rpl_exploration_generate_messages_cpp)
 
 #if(catkin_EXPORTED_LIBRARIES)
 #  add_dependencies(fly_to ${catkin_EXPORTED_LIBRARIES})
