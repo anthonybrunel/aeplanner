@@ -1,2 +1,4 @@
 *.pyc
 *.csv
+rpl_exploration/launch/scenes
+CMakeLists.txt.user
