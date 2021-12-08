@@ -19,8 +19,8 @@
 #include <nav_msgs/Odometry.h>
 
 #include <eigen_conversions/eigen_msg.h>
-#include "../../../oscar/utils_headers/poly_trajectory_rpg.h"
-#include "../../../oscar/utils_headers/plannerlogging.h"
+#include "flybo_utils/plannerlogging.h"
+#include "flybo_utils/poly_trajectory_rpg.h"
 
 enum State{
     NOTREADY,
